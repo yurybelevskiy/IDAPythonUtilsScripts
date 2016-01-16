@@ -1,5 +1,7 @@
 import idaapi
 import idautils
+import struct
+from struct_rules import *
 
 #Constant definitions
 
@@ -40,8 +42,7 @@ def collect_structs_ea(from_ea=MinEA(),to_ea=MaxEA(),struct_name):
 		return list()
 	else:
 		refs = list()
-		for ref in DataRefsTo(struct_id):
-			refs.append(ref)
+		all(refs.append(ref) for ref in DataRefsTo(struct_id))
 		return refs
 
 """Checks whether function at given @ea has a default name given by IDA"""
@@ -64,5 +65,12 @@ def check_default_function_name(ea):
 			return True
 	return False
 
-""""""
-
+"""returns value of bytes between @ea and @ea+@length"""
+def get_bytes_value(ea,length):
+	if ea < MinEA() or ea > MaxEA():
+		print "%s is out of bounds!" % hex(ea)
+		return False
+	byte_str = None
+	for addr in range(ea,ea+length):
+		byte_str += struct.pack("4B",Byte(addr))
+	return struct.unpack("<L",byte_str)[0]
