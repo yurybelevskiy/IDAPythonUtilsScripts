@@ -8,28 +8,38 @@ from struct_rules import *
 #List of typical IDA function prefixes
 IDA_FUNC_PREFIXES = {"sub","nullsub","j_nullsub","j_memset","j_memcmp"}
 
-"""Checks whether only 1 bit is set in the @val"""
+"""Checks whether only up to n bits is set in the @val"""
 """Doesn't work with negative numbers"""
 """Returns True or False"""
-def check_one_bit_set(val):
-	if val > 0:
-		counter = 0
-		while(val>0):
-			val = val >> 1
-			if(val & 1 == 1):
-				counter+=1
-			if counter>1:
-				return False		
-		return counter == 1
-	else:
-		if val < 0:
-			print "Value %d is negative! Please pass parameter >= 0!" % val
+def check_0_to_n_bits_set(val,n):
+	if n==0:
+		return val==0
+	if n<0:
+		print "Number of bits %d is negative! Please pass parameter >= 0!" % n
 		return False
+	else:
+		if val > 0:
+			counter = 0
+			while(val>0):
+				val = val >> 1
+				if(val & 1 == 1):
+					counter+=1
+				if counter>n:
+					return False		
+			return counter > 0 and counter <= n
+		else:
+			if val < 0:
+				print "Value %d is negative! Please pass parameter >= 0!" % val
+			return False
 
 """Collects structs of the given @struct_name located between @from_ea and @to_ea into the list"""
 """By default, function uses @from_ea = MinEA() and @to_ea=MaxEA()"""
 """If invalid name or address is given, returns empty list"""
-def collect_structs_ea(from_ea=MinEA(),to_ea=MaxEA(),struct_name):
+def collect_structs_ea(struct_name,from_ea=None,to_ea=None):
+	if from_ea is None:
+		from_ea=MinEA()
+	if to_ea is None:
+		to_ea = MaxEA()
 	if from_ea < MinEA() or from_ea > MaxEA():
 		print "%s is out of bounds!" % hex(from_ea)
 		return list()
@@ -41,9 +51,7 @@ def collect_structs_ea(from_ea=MinEA(),to_ea=MaxEA(),struct_name):
 		print "%s struct doesn't exist!" % struct_name
 		return list()
 	else:
-		refs = list()
-		all(refs.append(ref) for ref in DataRefsTo(struct_id))
-		return refs
+		return list(DataRefsTo(struct_id))
 
 """Checks whether function at given @ea has a default name given by IDA"""
 """Note that @ea can be any address inside function scope"""
@@ -65,12 +73,3 @@ def check_default_function_name(ea):
 			return True
 	return False
 
-"""returns value of bytes between @ea and @ea+@length"""
-def get_bytes_value(ea,length):
-	if ea < MinEA() or ea > MaxEA():
-		print "%s is out of bounds!" % hex(ea)
-		return False
-	byte_str = None
-	for addr in range(ea,ea+length):
-		byte_str += struct.pack("4B",Byte(addr))
-	return struct.unpack("<L",byte_str)[0]
