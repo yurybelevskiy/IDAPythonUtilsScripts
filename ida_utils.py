@@ -1,8 +1,6 @@
 import idaapi
 import idautils
 import struct
-from struct_rules import *
-
 #Constant definitions
 
 #List of typical IDA function prefixes
@@ -56,8 +54,7 @@ def collect_structs_ea(struct_name,from_ea=None,to_ea=None):
 """Checks whether function at given @ea has a default name given by IDA"""
 """Note that @ea can be any address inside function scope"""
 """Returns boolean value"""
-def check_default_function_name(ea):
-	global IDA_FUNC_PREFIXES
+def is_default_function_name(ea):
 	if ea < MinEA() or ea > MaxEA():
 		print "%s is out of bounds!" % hex(ea)
 		return False
@@ -68,8 +65,46 @@ def check_default_function_name(ea):
 		print "%s doesn't belong to any function!" % hex(ea)
 		return False
 	for prefix in IDA_FUNC_PREFIXES: 
-		match = re.search("{0}_".format(prefix,min_num_digits_ea,max_num_digits_ea),func_name)
+		match = re.search("{0}_[{1},{2}]".format(prefix,min_num_digits_ea,max_num_digits_ea),func_name)
 		if match:
 			return True
 	return False
 
+"""Checks whether struct is defined at given @ea"""
+"""Returns boolean value"""
+def is_struct(ea):
+	if ea < MinEA() or ea > MaxEA():
+		print "%s is out of bounds!" % hex(ea)
+		return False
+	return isStruct(GetFlags(ea))
+
+"""Returns valid @next_ea so that range(@ea,@next_ea) can be safely used without overflowing"""
+def get_ea_in_range(ea):
+	if ea < MinEA() or ea > MaxEA():
+		print "%s is out of bounds!" % hex(ea)
+		return False
+	next_ea = NextSeg(ea)
+	while(next_ea-ea >= sys.maxsize):
+		next_ea -= 1
+	return next_ea
+
+"""undefines area from @ea till @ea+@length"""
+def undefine(ea,length):
+	if ea < MinEA() or ea > MaxEA() or ea+length > MaxEA():
+		print "%s is out of bounds!" % hex(ea)
+		return False
+	MakeUnknown(ea,length,DOUNK_SIMPLE)	
+
+"""Whilst IDA provides MakeStruct function, it won't define the required struct until all bytes to compose the struct are undefined"""
+"""this function undefines required area first and defines the struct with @struct_name at @ea"""
+def define_struct(ea,struct_name):
+	if ea < MinEA() or ea > MaxEA():
+		print "%s is out of bounds!" % hex(ea)
+		return False
+	struct_id = GetStrucIdByName(struct_name)
+	if struct_id == -1:
+		print "%s struct doesn't exist!" % struct_name
+		return False
+	struct_size = GetStrucSize(struct_id)
+	undefine(ea,struct_size)
+	MakeStructEx(ea,-1,struct_name)

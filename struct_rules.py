@@ -1,8 +1,6 @@
-import idautils
-import idaapi
 from abc import ABCMeta, abstractmethod
 import collections
-from ida_utils import check_0_to_n_bits_set
+import ida_utils
 
 """Class that gives an abstract example of debug message classes"""
 class DebMesRule(StructRule):
