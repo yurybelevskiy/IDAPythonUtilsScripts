@@ -6,29 +6,23 @@ import struct
 #List of typical IDA function prefixes
 IDA_FUNC_PREFIXES = {"sub","nullsub","j_nullsub","j_memset","j_memcmp"}
 
-"""Checks whether only up to n bits is set in the @val"""
-"""Doesn't work with negative numbers"""
+"""Checks whether only up to @num_bits bits is set in the @val"""
 """Returns True or False"""
-def check_0_to_n_bits_set(val,n):
-	if n==0:
+def check_1_to_n_bits_set(val,num_bit):
+	if num_bit==0:
 		return val==0
-	if n<0:
-		print "Number of bits %d is negative! Please pass parameter >= 0!" % n
+	if num_bit<0:
+		print "Number of bits %d is negative! Please pass parameter >= 0!" % num_bit
 		return False
 	else:
-		if val > 0:
-			counter = 0
-			while(val>0):
-				val = val >> 1
-				if(val & 1 == 1):
-					counter+=1
-				if counter>n:
-					return False		
-			return counter > 0 and counter <= n
-		else:
-			if val < 0:
-				print "Value %d is negative! Please pass parameter >= 0!" % val
-			return False
+		counter = 0
+		while(val!=0):
+			val = val >> 1
+			if(val & 1 == 1):
+				counter+=1
+			if counter>num_bit:
+				return False		
+		return counter > 0 and counter <= num_bit
 
 """Collects structs of the given @struct_name located between @from_ea and @to_ea into the list"""
 """By default, function uses @from_ea = MinEA() and @to_ea=MaxEA()"""
@@ -78,15 +72,16 @@ def is_struct(ea):
 		return False
 	return isStruct(GetFlags(ea))
 
-"""Returns valid @next_ea so that range(@ea,@next_ea) can be safely used without overflowing"""
-def get_ea_in_range(ea):
-	if ea < MinEA() or ea > MaxEA():
-		print "%s is out of bounds!" % hex(ea)
-		return False
-	next_ea = NextSeg(ea)
-	while(next_ea-ea >= sys.maxsize):
-		next_ea -= 1
-	return next_ea
+"""Returns set of tuples representing segments where each tuple is (segment_start_ea,segment_finish_ea)"""
+def get_segment_ranges():
+	segments = set()
+	ea_pair = (FirstSeg(),SegEnd(FirstSeg()))
+	while(NextSeg(ea_pair[1])!=BADADDR):
+		segments.add(ea_pair)
+		next_ea = NextSeg(ea_pair[1])
+		ea_pair = (next_ea,SegEnd(next_ea))
+	segments.add(ea_pair)
+	return segments
 
 """undefines area from @ea till @ea+@length"""
 def undefine(ea,length):
